@@ -3,9 +3,9 @@ import java.net.*;
 import java.util.*;
 
 /*多人数間でのテキストチャットを実現するサーバー。
-* クライアントからテキストを受け取り、そのままそれを全クライアントに送信する。
-* こっちはIntelliJでそのまま実行しちゃってOK。引数不要。
-* サーバーを閉じる機能は実装してないので、Ctrl+Cで強制終了してね*/
+ * クライアントからテキストを受け取り、そのままそれを全クライアントに送信する。
+ * こっちはIntelliJでそのまま実行しちゃってOK。引数不要。
+ * サーバーを閉じる機能は実装してないので、Ctrl+Cで強制終了してね*/
 
 public class TextChatServer {
 	static ServerSocket serverSocket = null;
@@ -13,6 +13,7 @@ public class TextChatServer {
 	static ArrayList<Client> clients = new ArrayList<>();
 	//やりとりしたデータをログとして残すためのリスト。未実装。
 	static ArrayList<byte[]> log = new ArrayList<>();
+	static String textHead = ".text.";
 
 	//main()では、初期設定を行った後は新規クライアントの受付のみを行う。
 	public static void main(String[] args) {
@@ -46,7 +47,7 @@ public class TextChatServer {
 	}
 
 	/*メッセージの送信を行うスレッド。スレッドで実装する意味はもしかしたらないかもしれない。なんならクラスとしての実装の必要性も疑わしい。
-	* ReadThreadと違って、こっちのインスタンスは1つだけ作成される。*/
+	 * ReadThreadと違って、こっちのインスタンスは1つだけ作成される。*/
 	public static class SendThread extends Thread {
 		@Override
 		public synchronized void start() {
@@ -82,8 +83,8 @@ public class TextChatServer {
 	}
 
 	/*クライアントからのデータ（テキスト）を受け取るスレッドクラス。
-	* クライアントから接続があると、クライアントごとに新しくインスタンスが作成される。
-	* インスタンスができると、start()→run()の順番で実行される。*/
+	 * クライアントから接続があると、クライアントごとに新しくインスタンスが作成される。
+	 * インスタンスができると、start()→run()の順番で実行される。*/
 	public static class ReadThread extends Thread {
 		final Client client;
 		byte[] buff = new byte[1024];
@@ -104,7 +105,7 @@ public class TextChatServer {
 			//クライアントの名前を入力させる処理。run()でやった方がいいのか？わからん
 			if (client.name == null) {
 				do {
-					outStr = "Input your name >";
+					outStr = textHead + "Input your name >";
 					SendThread.sendBytes(outStr.getBytes(), client);
 					try {
 						n = client.inputStream.read(buff);
@@ -116,7 +117,7 @@ public class TextChatServer {
 				client.name = new String(Arrays.copyOfRange(buff, 0, n - 2));
 			}
 			//新規参加者の通知を全員に送信。
-			outStr = client.name + " is joined.\n" + clients.size() + " clients connecting now.\n";
+			outStr = textHead + client.name + " is joined.\n" + clients.size() + " clients connecting now.\n";
 			SendThread.sendBytes(outStr.getBytes());
 			super.start();
 		}
@@ -126,9 +127,9 @@ public class TextChatServer {
 			boolean check = true;
 			while (check) {
 				/*クライアントからの入力を受け取るdo-while文。
-				* 改行だけのデータ（つまり2バイトのデータ）は無視する。*/
+				 * 改行だけのデータ（つまり2バイトのデータ）は無視する。*/
 				do {
-					SendThread.sendBytes(">".getBytes());
+					SendThread.sendBytes((textHead + ">").getBytes());
 					try {
 						n = client.inputStream.read(buff);
 					} catch (IOException e) {
@@ -139,13 +140,13 @@ public class TextChatServer {
 				/*クライアントから送られてきたデータをまるっと文字列に変換する*/
 				String readStr = new String(Arrays.copyOfRange(buff, 0, n));
 				/*クライアントの名前と送られてきた文字列を結合する*/
-				outStr = client.name + " : " + readStr;
+				outStr = textHead + client.name + " : " + readStr;
 				//クライアントから「.quit」または「.exit」という文字列が送られてきたら、そのクライアントを切断する。
 				if (readStr.equals(".quit\r\n") || readStr.equals(".exit\r\n")) {
 					check = false;
 					clients.remove(client);
 					int connectedNum = clients.size();
-					outStr = client.name + " is exited.\n" + connectedNum + " clients are connecting now.\n";
+					outStr = textHead + client.name + " is exited.\n" + connectedNum + " clients are connecting now.\n>";
 					SendThread.sendBytes(".disconnect".getBytes(), client);
 				}
 				//データを全クライアントに送信する
